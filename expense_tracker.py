@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QMainWindow, QAction, qApp, QApplication, QFrame
 from PyQt5.QtWidgets import QApplication, QGridLayout, QLabel, QMainWindow, QPushButton, QWidget, QTableWidget, QTableWidgetItem, QMessageBox, QMenuBar, QLineEdit
-from PyQt5.QtGui import QBrush, QColor
+from PyQt5.QtGui import QBrush, QColor, QCursor
 from PyQt5 import QtCore
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
@@ -888,12 +888,24 @@ class BalanceWindow(QWidget):
 
         self.grid = QGridLayout(self)
 
+        self.frame_1 = QFrame(self)
+        self.grid_1 = QGridLayout(self.frame_1)
+
         self.label_1 = QLabel(self)
         self.label_1.setText('Balance overview')
         self.label_1.setAlignment(QtCore.Qt.AlignCenter)
         self.grid.addWidget(self.label_1, 0, 0)
 
         self.grid.addWidget(self.canvas, 1, 0)
+
+        self.button_2 = PushButton('1 month', 300, self.make_graph)
+        self.button_3 = PushButton('6 months', 300, self.make_graph)
+        self.button_4 = PushButton('1 year', 300, self.make_graph)
+        self.button_4 = PushButton('Entire time', 300, self.make_graph)
+
+        self.grid.addWidget(self.button_2, 2, 0)
+        self.grid.addWidget(self.button_3, 2, 1)
+        self.grid.addWidget(self.button_4, 2, 2)
 
     def calc_balance(self):
         expenses = e.cursor.execute(
@@ -910,6 +922,52 @@ class BalanceWindow(QWidget):
                 balances.insert(0, float(balances[0]) - float(expenses[-i][0]))
             dates.append(expenses[-i][2])
         return dates, balances
+
+    def make_graph(self):
+        try:
+            df = pd.DataFrame(
+                {'timestamp': self.balances[0], 'balance': self.balances[1]})
+            if type(df) != pd.DataFrame:
+                return
+
+            text = self.sender().text()
+
+            date = datetime.now().strftime("%Y%m%d%H%M%S")
+            year = int(date[:4])
+            month = int(date[4:6])
+            day = date[6:8]
+
+            if text == '1 year':
+                year -= 1
+
+            else:
+                text = int(text.split(' ')[0])
+
+                if text < month:
+                    month -= text
+                else:
+                    year -= 1
+                    month = (month + text) % 12
+
+                if month < 10:
+                    month = '0' + str(month)
+                else:
+                    month = str(month)
+
+            date = str(year) + str(month) + day + date[8:]
+            print(date)
+
+            df = df[df["timestamp"] > date]
+
+            self.canvas = MplCanvas(self)
+            self.canvas.axes.plot(df.timestamp, df.balance)
+            self.grid.addWidget(self.canvas, 1, 0)
+            self.canvas.show()
+
+        except AttributeError:
+            msg = QMessageBox(QMessageBox.Warning, 'Data not found',
+                              'Crypto with this symbol could not be found or not supported in this currency')
+            msg.exec_()
 
 
 class MplCanvas(FigureCanvasQTAgg):
@@ -1059,6 +1117,21 @@ class LineEdit(QLineEdit):
     def __init__(self, width=300):
         super().__init__()
         self.setMaximumWidth(width)
+
+
+class PushButton(QPushButton):
+    def __init__(self, text, width=0, action=0):
+        super().__init__()
+        self.stylesheet = ["*{border: 4px solid '#000000';", "border-radius: 45px;",
+                           "font-size: 25px;", "color: '#000000';", "padding: 30px;}", "*:hover{background: '#9604f5';}"]
+        self.setStyleSheet(''.join(self.stylesheet))
+        self.setCursor(QCursor(QtCore.Qt.PointingHandCursor))
+        self.setText(text)
+
+        if width:
+            self.setMaximumWidth(width)
+        if action:
+            self.clicked.connect(action)
 
 
 if __name__ == '__main__':
