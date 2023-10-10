@@ -894,18 +894,23 @@ class BalanceWindow(QWidget):
         self.label_1 = QLabel(self)
         self.label_1.setText('Balance overview')
         self.label_1.setAlignment(QtCore.Qt.AlignCenter)
-        self.grid.addWidget(self.label_1, 0, 0)
+        self.grid_1.addWidget(self.label_1, 0, 0)
 
-        self.grid.addWidget(self.canvas, 1, 0)
+        self.grid_1.addWidget(self.canvas, 1, 0)
 
-        self.button_2 = PushButton('1 month', 300, self.make_graph)
-        self.button_3 = PushButton('6 months', 300, self.make_graph)
-        self.button_4 = PushButton('1 year', 300, self.make_graph)
+        self.frame_2 = QFrame(self)
+        self.grid.addWidget(self.frame_2, )
+        self.grid_2 = QGridLayout(self.frame_2)
+
+        self.button_1 = PushButton('1 month', 300, self.make_graph)
+        self.button_2 = PushButton('6 months', 300, self.make_graph)
+        self.button_3 = PushButton('1 year', 300, self.make_graph)
         self.button_4 = PushButton('Entire time', 300, self.make_graph)
 
-        self.grid.addWidget(self.button_2, 2, 0)
-        self.grid.addWidget(self.button_3, 2, 1)
-        self.grid.addWidget(self.button_4, 2, 2)
+        self.grid_2.addWidget(self.button_1, 0, 0)
+        self.grid_2.addWidget(self.button_2, 0, 1)
+        self.grid_2.addWidget(self.button_3, 0, 2)
+        self.grid_2.addWidget(self.button_4, 0, 3)
 
     def calc_balance(self):
         expenses = e.cursor.execute(
@@ -925,6 +930,8 @@ class BalanceWindow(QWidget):
 
     def make_graph(self):
         try:
+            self.balances[0].reverse()
+            self.balances[1].reverse()
             df = pd.DataFrame(
                 {'timestamp': self.balances[0], 'balance': self.balances[1]})
             if type(df) != pd.DataFrame:
