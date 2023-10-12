@@ -905,12 +905,15 @@ class BalanceWindow(QWidget):
         self.button_1 = PushButton('1 month', 300, self.make_graph)
         self.button_2 = PushButton('6 months', 300, self.make_graph)
         self.button_3 = PushButton('1 year', 300, self.make_graph)
-        self.button_4 = PushButton('Entire time', 300, self.make_graph)
+        self.button_4 = PushButton('Entire time', 300, self.entire_time)
 
         self.grid_2.addWidget(self.button_1, 0, 0)
         self.grid_2.addWidget(self.button_2, 0, 1)
         self.grid_2.addWidget(self.button_3, 0, 2)
         self.grid_2.addWidget(self.button_4, 0, 3)
+
+        self.balances[0].reverse()
+        self.balances[1].reverse()
 
     def calc_balance(self):
         expenses = e.cursor.execute(
@@ -929,27 +932,21 @@ class BalanceWindow(QWidget):
         return dates, balances
 
     def make_graph(self):
+        print(self.sender().text())
         try:
-            self.balances[0].reverse()
-            self.balances[1].reverse()
-            df = pd.DataFrame(
+            self.df = pd.DataFrame(
                 {'timestamp': self.balances[0], 'balance': self.balances[1]})
-            if type(df) != pd.DataFrame:
-                return
 
             text = self.sender().text()
 
             date = datetime.now().strftime("%Y%m%d%H%M%S")
             year = int(date[:4])
             month = int(date[4:6])
-            day = date[6:8]
 
             if text == '1 year':
                 year -= 1
-
             else:
                 text = int(text.split(' ')[0])
-
                 if text < month:
                     month -= text
                 else:
@@ -961,13 +958,12 @@ class BalanceWindow(QWidget):
                 else:
                     month = str(month)
 
-            date = str(year) + str(month) + day + date[8:]
-            print(date)
+            date = str(year) + str(month) + date[6:]
 
-            df = df[df["timestamp"] > date]
+            self.df = self.df[self.df["timestamp"] > date]
 
             self.canvas = MplCanvas(self)
-            self.canvas.axes.plot(df.timestamp, df.balance)
+            self.canvas.axes.plot(self.df.timestamp, self.df.balance)
             self.grid.addWidget(self.canvas, 1, 0)
             self.canvas.show()
 
@@ -975,6 +971,18 @@ class BalanceWindow(QWidget):
             msg = QMessageBox(QMessageBox.Warning, 'Data not found',
                               'Crypto with this symbol could not be found or not supported in this currency')
             msg.exec_()
+
+    def entire_time(self):
+
+        print(self.sender().text())
+
+        self.df = pd.DataFrame(
+            {'timestamp': self.balances[0], 'balance': self.balances[1]})
+
+        self.canvas = MplCanvas(self)
+        self.canvas.axes.plot(self.df.timestamp, self.df.balance)
+        self.grid.addWidget(self.canvas, 1, 0)
+        self.canvas.show()
 
 
 class MplCanvas(FigureCanvasQTAgg):
