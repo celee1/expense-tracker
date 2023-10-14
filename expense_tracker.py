@@ -123,15 +123,10 @@ class ExpenseTracker(QMainWindow):
 
         self.button_grid = QGridLayout(self.button_frame)
 
-        self.month = QPushButton(self)
-        self.month.setText('Last 30 days')
-        self.month.clicked.connect(self.show_graph_time)
-        self.month.setMaximumWidth(200)
+        self.month = PushButton('Last 30 days', 200, self.show_graph_time)
         self.button_grid.addWidget(self.month, 1, 0)
-        self.year = QPushButton(self)
-        self.year.setText('This year')
-        self.year.clicked.connect(self.show_graph_time)
-        self.year.setMaximumWidth(200)
+
+        self.year = PushButton('This year', 200, self.show_graph_time)
         self.button_grid.addWidget(self.year, 1, 1)
 
         self.show_graph()
@@ -905,7 +900,7 @@ class BalanceWindow(QWidget):
         self.button_1 = PushButton('1 month', 300, self.make_graph)
         self.button_2 = PushButton('6 months', 300, self.make_graph)
         self.button_3 = PushButton('1 year', 300, self.make_graph)
-        self.button_4 = PushButton('Entire time', 300, self.entire_time)
+        self.button_4 = PushButton('Entire time', 300, self.make_graph)
 
         self.grid_2.addWidget(self.button_1, 0, 0)
         self.grid_2.addWidget(self.button_2, 0, 1)
@@ -932,11 +927,11 @@ class BalanceWindow(QWidget):
         return dates, balances
 
     def make_graph(self):
-        print(self.sender().text())
-        try:
-            self.df = pd.DataFrame(
-                {'timestamp': self.balances[0], 'balance': self.balances[1]})
 
+        self.df = pd.DataFrame(
+            {'timestamp': self.balances[0], 'balance': self.balances[1]})
+
+        try:
             text = self.sender().text()
 
             date = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -962,19 +957,15 @@ class BalanceWindow(QWidget):
 
             self.df = self.df[self.df["timestamp"] > date]
 
-            self.canvas = MplCanvas(self)
-            self.canvas.axes.plot(self.df.timestamp, self.df.balance)
-            self.grid.addWidget(self.canvas, 1, 0)
-            self.canvas.show()
+        except (AttributeError, ValueError):
+            pass
 
-        except AttributeError:
-            msg = QMessageBox(QMessageBox.Warning, 'Data not found',
-                              'Crypto with this symbol could not be found or not supported in this currency')
-            msg.exec_()
+        self.canvas = MplCanvas(self)
+        self.canvas.axes.plot(self.df.timestamp, self.df.balance)
+        self.grid.addWidget(self.canvas, 1, 0)
+        self.canvas.show()
 
     def entire_time(self):
-
-        print(self.sender().text())
 
         self.df = pd.DataFrame(
             {'timestamp': self.balances[0], 'balance': self.balances[1]})
