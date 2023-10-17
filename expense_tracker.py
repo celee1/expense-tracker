@@ -886,11 +886,6 @@ class BalanceWindow(QWidget):
         self.frame_1 = QFrame(self)
         self.grid_1 = QGridLayout(self.frame_1)
 
-        self.label_1 = QLabel(self)
-        self.label_1.setText('Balance overview')
-        self.label_1.setAlignment(QtCore.Qt.AlignCenter)
-        self.grid_1.addWidget(self.label_1, 0, 0)
-
         self.grid_1.addWidget(self.canvas, 1, 0)
 
         self.frame_2 = QFrame(self)
