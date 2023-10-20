@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 from sqlite3 import IntegrityError, OperationalError
 import sqlite3
-from datetime import datetime
+from datetime import datetime, date, timedelta
 import pandas as pd
 import numpy as np
 import string
@@ -835,8 +835,13 @@ class BudgetWindow(QWidget):
             grid = QGridLayout(budget_frame)
             splitted = budget[1].split(', ')
             amount = 0
+
             for item in splitted:
-                amount += float(expenses_dict[item])
+                if item in expenses_dict.keys():
+                    amount += float(expenses_dict[item])
+                else:
+                    pass
+
             budget_name = Label(budget[0])
             grid.addWidget(budget_name, 0, 0)
             amount_label = Label(str(amount) + '/' + budget[2])
@@ -866,6 +871,14 @@ class BudgetWindow(QWidget):
     def hide_budgets(self):
         [[item.hide() for item in time.children() if type(item) == QFrame]
          for time in [self.weekly, self.monthly, self.yearly]]
+
+    def sort_budgets(self):
+        pass
+        # yearly
+
+        # monthly
+
+        # weekly
 
 
 class BalanceWindow(QWidget):
@@ -929,28 +942,20 @@ class BalanceWindow(QWidget):
         try:
             text = self.sender().text()
 
-            date = datetime.now().strftime("%Y%m%d%H%M%S")
-            year = int(date[:4])
-            month = int(date[4:6])
+            now = datetime.now()
 
             if text == '1 year':
-                year -= 1
+                delta = now-timedelta(days=365)
+            elif text == '6 months':
+                delta = now-timedelta(weeks=26)
+            elif text == '1 month':
+                delta = now-timedelta(days=30)
+
+            if text != 'Entire time':
+                self.df = self.df[self.df["timestamp"]
+                                  > delta.strftime("%Y%m%d%H%M%S")]
             else:
-                text = int(text.split(' ')[0])
-                if text < month:
-                    month -= text
-                else:
-                    year -= 1
-                    month = (month + text) % 12
-
-                if month < 10:
-                    month = '0' + str(month)
-                else:
-                    month = str(month)
-
-            date = str(year) + str(month) + date[6:]
-
-            self.df = self.df[self.df["timestamp"] > date]
+                pass
 
         except (AttributeError, ValueError):
             pass
