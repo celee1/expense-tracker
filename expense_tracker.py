@@ -811,7 +811,7 @@ class BudgetWindow(QWidget):
         print(budgets)
         expenses = e.cursor.execute(
             f'SELECT category, SUM(amount) FROM expenses WHERE user = "{e.account}" GROUP BY category;').fetchall()
-        print(expenses)
+
         expenses_dict = {}
         for expense in expenses:
             expenses_dict[expense[0]] = expense[1]
@@ -822,22 +822,18 @@ class BudgetWindow(QWidget):
         for budget in budgets:
             budget_frame = QFrame(self)
             grid = QGridLayout(budget_frame)
-            splitted = budget[1].split(', ')
             amount = 0
 
-            for item in splitted:
-                if item in expenses_dict.keys():
-                    amount += float(expenses_dict[item])
-                else:
-                    pass
+            if budget[0] in expenses_dict.keys():
+                amount += float(expenses_dict[budget[0]])
 
             budget_name = Label(budget[0])
             grid.addWidget(budget_name, 0, 0)
-            amount_label = Label(str(amount) + '/' + budget[2])
+            amount_label = Label(str(amount) + '/' + budget[1])
             grid.addWidget(amount_label, 1, 0)
-            if amount > float(budget[2]):
+            if amount > float(budget[1]):
                 amount_label.setStyleSheet('color: red;')
-            elif amount == float(budget[2]):
+            elif amount == float(budget[1]):
                 amount_label.setStyleSheet('color: yellow')
             if budget[-1] == 'weekly':
                 self.weekly_grid.addWidget(budget_frame, weekly, 0)
@@ -994,53 +990,39 @@ class NewBudget(QWidget):
         self.grid_1 = QGridLayout(self.frame_1)
         self.grid.addWidget(self.frame_1, 0, 0, 1, 2)
 
-        self.close_button = QPushButton(self)
-        self.close_button.setText('Close window')
-        self.close_button.clicked.connect(self.close)
-        self.close_button.setMaximumWidth(200)
+        self.close_button = PushButton('Close window', 200, self.close)
         self.grid_1.addWidget(self.close_button, 0, 0)
 
-        self.save_button = QPushButton(self)
-        self.save_button.setText('Save budget')
-        self.save_button.clicked.connect(self.save_budget)
-        self.save_button.setMaximumWidth(200)
+        self.save_button = PushButton('Save budget', 200, self.save_budget)
         self.grid_1.addWidget(self.save_button, 0, 1)
 
-        self.name = Label('Name')
+        self.name = Label('Category')
         self.name.setFocus()
         self.grid.addWidget(self.name, 1, 0)
 
-        self.name_entry = LineEdit()
-        self.grid.addWidget(self.name_entry, 1, 1)
+        self.category_entry = LineEdit()
+        self.grid.addWidget(self.category_entry, 1, 1)
 
-        self.amount = Label('Amount')
-        self.grid.addWidget(self.amount, 2, 0)
+        self.grid.addWidget(Label('Amount'), 2, 0)
 
         self.amount_entry = LineEdit()
         self.grid.addWidget(self.amount_entry, 2, 1)
 
-        self.period = Label('Time period')
-        self.grid.addWidget(self.period, 3, 0)
+        self.grid.addWidget(Label('Time period'), 3, 0)
 
         self.period_entry = LineEdit()
         self.grid.addWidget(self.period_entry, 3, 1)
 
-        self.category = Label('Category (one or more)')
-        self.grid.addWidget(self.category, 4, 0)
-
-        self.category_entry = LineEdit()
-        self.grid.addWidget(self.category_entry, 4, 1)
-
-        self.account = Label('Account')
-        self.grid.addWidget(self.account, 5, 0)
+        self.grid.addWidget(Label('Account'), 5, 0)
 
         self.account_entry = LineEdit()
         self.account_entry.setText(e.account)
         self.grid.addWidget(self.account_entry, 5, 1)
 
     def save_budget(self):
-        data = [self.name_entry.text(), self.period_entry.text(),
-                self.category_entry.text(), self.account_entry.text(), self.amount_entry.text()]
+        data = [self.category_entry.text(), self.period_entry.text(
+        ), self.account_entry.text(), self.amount_entry.text()]
+
         budgets = [name[0] for name in e.cursor.execute(f'SELECT name FROM budgets'
                                                         ).fetchall()]
         if data[0] in budgets:
@@ -1048,25 +1030,30 @@ class NewBudget(QWidget):
                               'Budget with this name already exists in the database')
             msg.exec_()
             return
+
         if '' in data:
             msg = QMessageBox(QMessageBox.Warning, 'Empty entries',
                               'Please fill out all the entries')
             msg.exec_()
             return
+
         if data[1].lower() not in ['weekly', 'monthly', 'yearly']:
             msg = QMessageBox(QMessageBox.Warning, 'Invalid timeframe',
                               'Please choose either beetwen a weekly, a monthly or a yearly period')
             msg.exec_()
             return
+
         accounts = [account[0] for account in e.cursor.execute(
             'SELECT name FROM account;').fetchall()]
-        if data[3] not in accounts:
+
+        if data[2] not in accounts:
             msg = QMessageBox(
                 QMessageBox.Warning, 'Account unknown', 'Please select a valid account')
             msg.exec_()
             return
+
         e.cursor.execute(
-            f'INSERT INTO budgets VALUES ("{data[0]}", "{data[2]}", "{data[4]}", "{data[3]}", "{data[1]}")')
+            f'INSERT INTO budgets VALUES ("{data[0]}", "{data[3]}", "{data[2]}", "{data[1]}")')
         e.db.commit()
 
         e.budget_window.get_budgets()
