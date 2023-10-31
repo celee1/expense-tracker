@@ -23,7 +23,7 @@ matplotlib.use('Qt5Agg')
 
 # budgeti -> opcija kad udes koja provjerava koji je racun
 #         -> ako se napravi racun unosi se unos u balance tablicu
-#         -> ako je raucn postojeci povlaci zadnji iznos iz balance tablice
+#         -> ako je racun postojeci povlaci zadnji iznos iz balance tablice
 
 # balance tablica ima zapise o stanju na racunu kroz vrijeme
 # sql query dodaje stanje u racunu pri unosu troskova i prihoda, kao i postavljanja stanja na racunu
@@ -808,7 +808,7 @@ class BudgetWindow(QWidget):
     def get_budgets(self):
         budgets = e.cursor.execute(
             f'SELECT * FROM budgets WHERE account = "{e.account}"').fetchall()
-        print(budgets)
+
         expenses = e.cursor.execute(
             f'SELECT category, SUM(amount) FROM expenses WHERE user = "{e.account}" GROUP BY category;').fetchall()
 
@@ -819,10 +819,22 @@ class BudgetWindow(QWidget):
         weekly = 1
         monthly = 1
         yearly = 1
+
         for budget in budgets:
             budget_frame = QFrame(self)
             grid = QGridLayout(budget_frame)
             amount = 0
+
+            now = datetime.now().strftime('%Y%m%d%H%M%S')
+
+            if budget[3] == 'yearly':
+                year = int(now[:4]) - 1
+                now = str(year) + now[4:6] + '00000000'
+            elif budget[3] == 'monthly':
+                month = int(now[:6]) - 1
+                now = str(month) + '00000000'
+            elif budget[3] == 'weekly':
+                pass
 
             if budget[0] in expenses_dict.keys():
                 amount += float(expenses_dict[budget[0]])
@@ -856,21 +868,6 @@ class BudgetWindow(QWidget):
     def hide_budgets(self):
         [[item.hide() for item in time.children() if type(item) == QFrame]
          for time in [self.weekly, self.monthly, self.yearly]]
-
-    def sort_budgets(self):
-        pass
-        # yearly
-
-        yearly = 365
-
-        monthly = 0
-
-        # monthly
-
-        # weekly
-
-        # sortirat troskove u godisnje, mjesecne i tjedne pomocu time delta
-        # zatim povuc kategorije po budzetu i zbrojit
 
 
 class BalanceWindow(QWidget):
