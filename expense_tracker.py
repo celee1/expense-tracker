@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 from sqlite3 import IntegrityError, OperationalError
 import sqlite3
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 import string
@@ -16,6 +16,17 @@ import sys
 
 matplotlib.use('Qt5Agg')
 
+# zavrsit izracun budzeta
+# promijenit opciju za stanje na racunu
+# promijenit vremenski format
+
+
+# budgeti -> opcija kad udes koja provjerava koji je racun
+#         -> ako se napravi racun unosi se unos u balance tablicu
+#         -> ako je raucn postojeci povlaci zadnji iznos iz balance tablice
+
+# balance tablica ima zapise o stanju na racunu kroz vrijeme
+# sql query dodaje stanje u racunu pri unosu troskova i prihoda, kao i postavljanja stanja na racunu
 
 class ExpenseTracker(QMainWindow):
     def __init__(self):
@@ -132,36 +143,25 @@ class ExpenseTracker(QMainWindow):
         self.show_graph()
 
     def show_graph(self, table_name='expenses', amount='amount', asset='category', date='Last 30 days'):
-        l_of_time = list(self.get_time())
+
+        now = datetime.now()
 
         if date == 'Last 30 days':
-            if l_of_time[4:6] == ['0', '1']:
-                l_of_time[4] = '1'
-                l_of_time[5] = '2'
-                l_of_time[3] = str(int(l_of_time[3]) - 1)
-            else:
-                nums = int(''.join(l_of_time[4:6]))
-                nums -= 1
-                if nums < 10:
-                    l_of_time[4] = '0'
-                    l_of_time[5] = str(nums)
-                else:
-                    l_of_time[4] = str(nums)[0]
-                    l_of_time[5] = str(nums)[1]
-
+            num_days = 30
         else:
-            l_of_time[3] = str(int(l_of_time[3]) - 1)
+            num_days = 365
 
-        l_of_time = ''.join(l_of_time)
+        days = (now - timedelta(days=num_days)).strftime('%Y%m%d%H%M%S')
 
         try:
             query = self.cursor.execute(
-                f'SELECT {asset}, SUM({amount}) FROM "{table_name}" WHERE type = "expense" AND time BETWEEN "{l_of_time}" AND "{self.get_time()}" AND user = "{self.account}" GROUP BY {asset}').fetchall()
+                f'SELECT {asset}, SUM({amount}) FROM "{table_name}" WHERE type = "expense" AND time BETWEEN "{days}" AND "{self.get_time()}" AND user = "{self.account}" GROUP BY {asset}').fetchall()
         except OperationalError:
             query = self.cursor.execute(
-                f'SELECT {asset}, SUM({amount}) FROM "expenses" WHERE type = "expense" AND time BETWEEN "{l_of_time}" AND "{self.get_time()}" AND user = "{self.account}" GROUP BY {asset}').fetchall()
+                f'SELECT {asset}, SUM({amount}) FROM "expenses" WHERE type = "expense" AND time BETWEEN "{days}" AND "{self.get_time()}" AND user = "{self.account}" GROUP BY {asset}').fetchall()
 
         self.pie = MplCanvasPie(self, width=6, height=5, dpi=100)
+
         if date == 'Last 30 days':
             time = 'Last 30 days'
         else:
@@ -193,8 +193,7 @@ class ExpenseTracker(QMainWindow):
             self.label_4.setText('no data')
 
     def get_time(self):
-        return ''.join([item for item in datetime.now().strftime(
-            '%Y/%m/%d, %H:%M:%S') if item.isalnum()])
+        return datetime.now().strftime('%Y%m%d%H%M%S')
 
     def new_balance(self):
         self.balance_window = NewBalance()
@@ -250,12 +249,12 @@ class NewBalance(QWidget):
         self.grid.addWidget(self.edit, 1, 0, 1, 2)
 
         self.insert_button = QPushButton(self)
-        self.insert_button.setText('UMETNI')
+        self.insert_button.setText('Insert')
         self.insert_button.clicked.connect(self.change_balance)
         self.grid.addWidget(self.insert_button, 2, 0)
 
         self.close_button = QPushButton(self)
-        self.close_button.setText('ODUSTANI')
+        self.close_button.setText('Exit window')
         self.close_button.clicked.connect(self.close)
         self.grid.addWidget(self.close_button, 2, 1)
 
@@ -268,6 +267,7 @@ class NewBalance(QWidget):
         else:
             e.cursor.execute(
                 f'INSERT INTO account VALUES ("{account}", "{self.edit.text()}");')
+
         e.db.commit()
         e.get_account_balance(e.account)
         self.close()
@@ -439,8 +439,6 @@ class NewExpense(QWidget):
                                   'User not found', f'No user named {self.user}')
                 msg.exec_()
                 return
-
-            date = datetime.now().strftime('%Y/%m/%d, %H:%M:%S')
 
             e.cursor.execute(
                 f'INSERT INTO expenses VALUES ("{self.user}", "{self.table_category}", "{self.amount.text()}", "{e.get_time()}", "{self.type}")')
@@ -768,48 +766,37 @@ class BudgetWindow(QWidget):
         self.grid = QGridLayout(self)
 
         self.main_label = QLabel(self)
-        self.main_label.setText('Budgets')
-        self.main_label.setAlignment(QtCore.Qt.AlignCenter)
         self.grid.addWidget(self.main_label, 0, 0, 1, 3)
 
         self.weekly = QFrame(self)
         self.grid.addWidget(self.weekly, 1, 0)
         self.weekly_grid = QGridLayout(self.weekly)
-        self.weekly_label = QLabel(self)
-        self.weekly_label.setText('Weekly budgets')
-        self.weekly_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.weekly_label = Label('Weekly budgets')
         self.weekly_grid.addWidget(self.weekly_label, 0, 0)
 
         self.monthly = QFrame(self)
         self.grid.addWidget(self.monthly, 1, 1)
         self.monthly_grid = QGridLayout(self.monthly)
-        self.monthly_label = QLabel(self)
-        self.monthly_label.setText('Monthly budgets')
+        self.monthly_label = Label('Monthly budgets')
         self.monthly_label.setAlignment(QtCore.Qt.AlignCenter)
         self.monthly_grid.addWidget(self.monthly_label, 0, 0)
 
         self.yearly = QFrame(self)
         self.grid.addWidget(self.yearly, 1, 2)
         self.yearly_grid = QGridLayout(self.yearly)
-        self.yearly_label = QLabel(self)
-        self.yearly_label.setText('Yearly budgets')
-        self.yearly_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.yearly_label = Label('Yearly budgets')
         self.yearly_grid.addWidget(self.yearly_label, 0, 0)
 
         self.new_budget = QFrame(self)
         self.grid.addWidget(self.new_budget, 2, 0, 1, 3)
         self.new_budget_grid = QGridLayout(self.new_budget)
 
-        self.make_budget = QPushButton(self)
-        self.make_budget.setText('Make a new budget')
-        self.make_budget.setMaximumWidth(300)
-        self.make_budget.clicked.connect(self.make_a_new_budget)
+        self.make_budget = PushButton(
+            'Make a new budget', 300, self.make_a_new_budget)
         self.new_budget_grid.addWidget(self.make_budget, 0, 0)
 
-        self.delete_budget = QPushButton(self)
-        self.delete_budget.setText('Delete a budget')
-        self.delete_budget.setMaximumWidth(300)
-        self.delete_budget.clicked.connect(self.delete_a_budget)
+        self.delete_budget = PushButton(
+            'Delete a budget', 300, self.delete_a_budget)
         self.new_budget_grid.addWidget(self.delete_budget, 0, 1)
 
         self.budgets = []
@@ -821,8 +808,10 @@ class BudgetWindow(QWidget):
     def get_budgets(self):
         budgets = e.cursor.execute(
             f'SELECT * FROM budgets WHERE account = "{e.account}"').fetchall()
+        print(budgets)
         expenses = e.cursor.execute(
             f'SELECT category, SUM(amount) FROM expenses WHERE user = "{e.account}" GROUP BY category;').fetchall()
+        print(expenses)
         expenses_dict = {}
         for expense in expenses:
             expenses_dict[expense[0]] = expense[1]
@@ -876,9 +865,16 @@ class BudgetWindow(QWidget):
         pass
         # yearly
 
+        yearly = 365
+
+        monthly = 0
+
         # monthly
 
         # weekly
+
+        # sortirat troskove u godisnje, mjesecne i tjedne pomocu time delta
+        # zatim povuc kategorije po budzetu i zbrojit
 
 
 class BalanceWindow(QWidget):
