@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 from sqlite3 import IntegrityError, OperationalError
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import pandas as pd
 import numpy as np
 import string
@@ -812,6 +812,10 @@ class BudgetWindow(QWidget):
         expenses = e.cursor.execute(
             f'SELECT category, SUM(amount) FROM expenses WHERE user = "{e.account}" GROUP BY category;').fetchall()
 
+        # expense ima kategoriju, pokusat subsettat dict za tu kategorijju, zatim provjerit datum
+        # ako ulayi u datum podic amount
+        # na kraju upisat amounte po budgetima ovisno o vremenu
+
         expenses_dict = {}
         for expense in expenses:
             expenses_dict[expense[0]] = expense[1]
@@ -834,7 +838,8 @@ class BudgetWindow(QWidget):
                 month = int(now[:6]) - 1
                 now = str(month) + '00000000'
             elif budget[3] == 'weekly':
-                pass
+                day = int(now[:8]) - date.today().weekday()
+                now = str(day) + '000000'
 
             if budget[0] in expenses_dict.keys():
                 amount += float(expenses_dict[budget[0]])
