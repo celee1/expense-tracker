@@ -16,10 +16,8 @@ import sys
 
 matplotlib.use('Qt5Agg')
 
-# zavrsit izracun budzeta
-# promijenit opciju za stanje na racunu
-# promijenit vremenski format
 
+# promijenit opciju za stanje na racunu
 
 # budgeti -> opcija kad udes koja provjerava koji je racun
 #         -> ako se napravi racun unosi se unos u balance tablicu
@@ -142,6 +140,54 @@ class ExpenseTracker(QMainWindow):
 
         self.show_graph()
 
+    def add_an_expense(self):
+        self.expense_window = NewExpense()
+        self.expense_window.show()
+
+    def clear_expenses(self):
+        self.cursor.execute('DELETE FROM expenses')
+        self.db.commit()
+
+    def change_account(self):
+        self.change_account_window = AccountPicker(self, initial=True)
+        self.change_account_window.show()
+
+    def get_account_balance(self, account, initial=True):
+        try:
+            self.label_2.setText('Balance: ' + [item[0] for item in self.cursor.execute(
+                f'SELECT amount FROM account WHERE name = "{account}";').fetchall()][0] + '€')
+            if initial == False:
+                self.label_4.setText(self.label_4.text().split(' ')[
+                                     0] + ' ' + self.account)
+        except IndexError:
+            self.label_2.setText('no data')
+            self.label_4.setText('no data')
+
+    def get_balance(self):
+        self.balance_window = BalanceWindow()
+        self.balance_window.show()
+
+    def get_budgets(self):
+        self.budget_window = BudgetWindow()
+        self.budget_window.show()
+
+    def get_records(self):
+        self.records_window = RecordsWindow()
+        if type(self.records_window.table) == QTableWidget:
+            self.records_window.show()
+        else:
+            self.records_window.close()
+
+    def get_time(self):
+        return datetime.now().strftime('%Y%m%d%H%M%S')
+
+    def hide_pie(self):
+        self.pie.hide()
+
+    def new_balance(self):
+        self.balance_window = NewBalance()
+        self.balance_window.show()
+
     def show_graph(self, table_name='expenses', amount='amount', asset='category', date='Last 30 days'):
 
         now = datetime.now()
@@ -180,54 +226,6 @@ class ExpenseTracker(QMainWindow):
     def show_graph_time(self):
         date = self.sender().text()
         self.chart_1 = self.show_graph(date=date)
-
-    def get_account_balance(self, account, initial=True):
-        try:
-            self.label_2.setText('Balance: ' + [item[0] for item in self.cursor.execute(
-                f'SELECT amount FROM account WHERE name = "{account}";').fetchall()][0] + '€')
-            if initial == False:
-                self.label_4.setText(self.label_4.text().split(' ')[
-                                     0] + ' ' + self.account)
-        except IndexError:
-            self.label_2.setText('no data')
-            self.label_4.setText('no data')
-
-    def get_time(self):
-        return datetime.now().strftime('%Y%m%d%H%M%S')
-
-    def new_balance(self):
-        self.balance_window = NewBalance()
-        self.balance_window.show()
-
-    def add_an_expense(self):
-        self.expense_window = NewExpense()
-        self.expense_window.show()
-
-    def get_records(self):
-        self.records_window = RecordsWindow()
-        if type(self.records_window.table) == QTableWidget:
-            self.records_window.show()
-        else:
-            self.records_window.close()
-
-    def get_budgets(self):
-        self.budget_window = BudgetWindow()
-        self.budget_window.show()
-
-    def get_balance(self):
-        self.balance_window = BalanceWindow()
-        self.balance_window.show()
-
-    def clear_expenses(self):
-        self.cursor.execute('DELETE FROM expenses')
-        self.db.commit()
-
-    def hide_pie(self):
-        self.pie.hide()
-
-    def change_account(self):
-        self.change_account_window = AccountPicker(self, initial=True)
-        self.change_account_window.show()
 
 
 class NewBalance(QWidget):
@@ -397,19 +395,22 @@ class NewExpense(QWidget):
 
         self.get_inital_values()
 
-    def get_inital_values(self):
-        try:
-            self.table_category, self.type = e.cursor.execute(
-                'SELECT category, type FROM expenses').fetchall()[-1]
-            self.account.setText(self.account_text + self.user)
-            self.category.setText(self.category_text + self.table_category)
-            if self.type == 'expense':
-                self.expense.setStyleSheet('background: #FFFF00;')
+    def change_amount(self):
+        current_amount = self.amount.text()
+        sender = self.sender().text()
+        if sender == '<':
+            if len(current_amount) == 0:
+                pass
             else:
-                self.income.setStyleSheet('background: #FFFF00;')
-        except IndexError:
-            self.account.setText('unknown')
-            self.category.setText('unknown')
+                self.amount.setText(current_amount[:-1])
+        elif sender == '.':
+            if '.' not in current_amount:
+                if len(current_amount) == 0:
+                    pass
+                else:
+                    self.amount.setText(current_amount + '.')
+        else:
+            self.amount.setText(current_amount + sender)
 
     def change_to_income(self):
         if self.type == 'income':
@@ -426,6 +427,28 @@ class NewExpense(QWidget):
             self.income.setStyleSheet('background: #FFFFFF')
             self.expense.setStyleSheet('background: #FFFF00')
             self.type = 'expense'
+
+    def choose_account(self):
+        self.account_window = AccountPicker(parent=self)
+        self.account_window.show()
+
+    def choose_category(self):
+        self.category_window = CategoryPicker()
+        self.category_window.show()
+
+    def get_inital_values(self):
+        try:
+            self.table_category, self.type = e.cursor.execute(
+                'SELECT category, type FROM expenses').fetchall()[-1]
+            self.account.setText(self.account_text + self.user)
+            self.category.setText(self.category_text + self.table_category)
+            if self.type == 'expense':
+                self.expense.setStyleSheet('background: #FFFF00;')
+            else:
+                self.income.setStyleSheet('background: #FFFF00;')
+        except IndexError:
+            self.account.setText('unknown')
+            self.category.setText('unknown')
 
     def insert_expense(self):
 
@@ -472,55 +495,6 @@ class NewExpense(QWidget):
         e.pie.hide()
         e.show_graph()
         e.get_account_balance(self.user)
-
-    def choose_account(self):
-        self.account_window = AccountPicker(parent=self)
-        self.account_window.show()
-
-    def choose_category(self):
-        self.category_window = CategoryPicker()
-        self.category_window.show()
-
-    def change_amount(self):
-        current_amount = self.amount.text()
-        sender = self.sender().text()
-        if sender == '<':
-            if len(current_amount) == 0:
-                pass
-            else:
-                self.amount.setText(current_amount[:-1])
-        elif sender == '.':
-            if '.' not in current_amount:
-                if len(current_amount) == 0:
-                    pass
-                else:
-                    self.amount.setText(current_amount + '.')
-        else:
-            self.amount.setText(current_amount + sender)
-
-
-class MplCanvasPie(FigureCanvasQTAgg):
-    def __init__(self, parent=None, width=5, height=4, dpi=100):
-        fig = Figure(figsize=(width, height), dpi=dpi)
-        self.axes = fig.add_subplot(111)
-        super(MplCanvasPie, self).__init__(fig)
-
-    def show_overview(self, amounts, assets, table_name='overview', table_title='overview', time_period='Last 30 days'):
-        def func(pct, allvals):
-            absolute = int(np.round(pct/100.*np.sum(allvals)))
-            return "{:.1f}%\n({:d} €)".format(pct, absolute)
-
-        wedges, texts, autotexts = self.axes.pie(amounts, autopct=lambda pct: func(pct, amounts),
-                                                 textprops=dict(color="w"))
-
-        self.axes.legend(wedges, assets,
-                         title='Kategorije troškova',
-                         loc="lower right",
-                         bbox_to_anchor=(0, 0, 0, 0))
-
-        plt.setp(autotexts, size=8, weight="bold")
-
-        self.axes.set_title(f'{time_period}: {table_title} €')
 
 
 class AccountPicker(QWidget):
@@ -706,6 +680,17 @@ class RecordsWindow(QWidget):
         return [item for item in ''.join(
             almost_done).split(',') if item != '']
 
+    def set_table_width(self):
+        try:
+            width = self.table.verticalHeader().width()
+            width += self.table.horizontalHeader().length()
+            if self.table.verticalScrollBar().isVisible():
+                width += self.table.verticalScrollBar().width()
+            width += self.table.frameWidth() * 2
+            self.table.setFixedWidth(width)
+        except AttributeError:
+            pass
+
     def show_table(self, table_name='expenses'):
         columns = self.get_column_names(table_name)
 
@@ -743,17 +728,6 @@ class RecordsWindow(QWidget):
             msg = QMessageBox(QMessageBox.Warning, 'Table empty',
                               'Table empty, cannot show data')
             msg.exec_()
-
-    def set_table_width(self):
-        try:
-            width = self.table.verticalHeader().width()
-            width += self.table.horizontalHeader().length()
-            if self.table.verticalScrollBar().isVisible():
-                width += self.table.verticalScrollBar().width()
-            width += self.table.frameWidth() * 2
-            self.table.setFixedWidth(width)
-        except AttributeError:
-            pass
 
 
 class BudgetWindow(QWidget):
@@ -804,6 +778,10 @@ class BudgetWindow(QWidget):
         self.get_budgets()
 
         # dodat funkcionalnost za promijenit iznos budgeta kao i dodat novi te izbrisat
+
+    def delete_a_budget(self):
+        self.delete_a_budget_window = DeleteBudget()
+        self.delete_a_budget_window.show()
 
     def get_budgets(self):
         budgets_raw = e.cursor.execute(
@@ -874,17 +852,13 @@ class BudgetWindow(QWidget):
                 self.yearly_grid.addWidget(budget_frame, yearly, 0)
                 yearly += 1
 
-    def make_a_new_budget(self):
-        self.new_budget_window = NewBudget()
-        self.new_budget_window.show()
-
-    def delete_a_budget(self):
-        self.delete_a_budget_window = DeleteBudget()
-        self.delete_a_budget_window.show()
-
     def hide_budgets(self):
         [[item.hide() for item in time.children() if type(item) == QFrame]
          for time in [self.weekly, self.monthly, self.yearly]]
+
+    def make_a_new_budget(self):
+        self.new_budget_window = NewBudget()
+        self.new_budget_window.show()
 
 
 class BalanceWindow(QWidget):
@@ -940,6 +914,16 @@ class BalanceWindow(QWidget):
             dates.append(expenses[-i][2])
         return dates, balances
 
+    def entire_time(self):
+
+        self.df = pd.DataFrame(
+            {'timestamp': self.balances[0], 'balance': self.balances[1]})
+
+        self.canvas = MplCanvas(self)
+        self.canvas.axes.plot(self.df.timestamp, self.df.balance)
+        self.grid.addWidget(self.canvas, 1, 0)
+        self.canvas.show()
+
     def make_graph(self):
 
         self.df = pd.DataFrame(
@@ -970,23 +954,6 @@ class BalanceWindow(QWidget):
         self.canvas.axes.plot(self.df.timestamp, self.df.balance)
         self.grid.addWidget(self.canvas, 1, 0)
         self.canvas.show()
-
-    def entire_time(self):
-
-        self.df = pd.DataFrame(
-            {'timestamp': self.balances[0], 'balance': self.balances[1]})
-
-        self.canvas = MplCanvas(self)
-        self.canvas.axes.plot(self.df.timestamp, self.df.balance)
-        self.grid.addWidget(self.canvas, 1, 0)
-        self.canvas.show()
-
-
-class MplCanvas(FigureCanvasQTAgg):
-    def __init__(self, parent=None, width=5, height=4, dpi=100):
-        fig = Figure(figsize=(width, height), dpi=dpi)
-        self.axes = fig.add_subplot(111)
-        super(MplCanvas, self).__init__(fig)
 
 
 class NewBudget(QWidget):
@@ -1106,6 +1073,37 @@ class DeleteBudget(QWidget):
 
         e.budget_window.hide_budgets()
         e.budget_window.get_budgets()
+
+
+class MplCanvas(FigureCanvasQTAgg):
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+        fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = fig.add_subplot(111)
+        super(MplCanvas, self).__init__(fig)
+
+
+class MplCanvasPie(FigureCanvasQTAgg):
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+        fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = fig.add_subplot(111)
+        super(MplCanvasPie, self).__init__(fig)
+
+    def show_overview(self, amounts, assets, table_name='overview', table_title='overview', time_period='Last 30 days'):
+        def func(pct, allvals):
+            absolute = int(np.round(pct/100.*np.sum(allvals)))
+            return "{:.1f}%\n({:d} €)".format(pct, absolute)
+
+        wedges, texts, autotexts = self.axes.pie(amounts, autopct=lambda pct: func(pct, amounts),
+                                                 textprops=dict(color="w"))
+
+        self.axes.legend(wedges, assets,
+                         title='Kategorije troškova',
+                         loc="lower right",
+                         bbox_to_anchor=(0, 0, 0, 0))
+
+        plt.setp(autotexts, size=8, weight="bold")
+
+        self.axes.set_title(f'{time_period}: {table_title} €')
 
 
 class Label(QLabel):
