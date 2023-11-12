@@ -806,56 +806,68 @@ class BudgetWindow(QWidget):
         # dodat funkcionalnost za promijenit iznos budgeta kao i dodat novi te izbrisat
 
     def get_budgets(self):
-        budgets = e.cursor.execute(
-            f'SELECT * FROM budgets WHERE account = "{e.account}"').fetchall()
+        budgets_raw = e.cursor.execute(
+            f'SELECT category, amount, time FROM budgets WHERE account = "{e.account}"').fetchall()
 
         expenses = e.cursor.execute(
-            f'SELECT category, SUM(amount) FROM expenses WHERE user = "{e.account}" GROUP BY category;').fetchall()
+            f'SELECT category, amount, time FROM expenses WHERE user = "{e.account}"').fetchall()
 
-        # expense ima kategoriju, pokusat subsettat dict za tu kategorijju, zatim provjerit datum
-        # ako ulayi u datum podic amount
-        # na kraju upisat amounte po budgetima ovisno o vremenu
+        budgets_dict = {}
 
-        expenses_dict = {}
+        now = datetime.now().strftime('%Y%m%d%H%M%S')
+
+        year = int(now[:4]) - 1
+        yearly = str(year) + now[4:6] + '00000000'
+
+        month = int(now[:6]) - 1
+        monthly = str(month) + '00000000'
+
+        week = int(now[:8]) - date.today().weekday()
+        weekly = str(week) + '000000'
+
+        for budget in budgets_raw:
+            budgets_dict[budget[0]] = {}
+            budgets_dict[budget[0]]['amount'] = budget[1]
+            budgets_dict[budget[0]]['amount_spent'] = 0
+
+            if budget[2] == 'yearly':
+                budgets_dict[budget[0]]['time'] = yearly
+                budgets_dict[budget[0]]['interval'] = 'yearly'
+            elif budget[2] == 'monthly':
+                budgets_dict[budget[0]]['time'] = monthly
+                budgets_dict[budget[0]]['interval'] = 'monthly'
+            elif budget[2] == 'weekly':
+                budgets_dict[budget[0]]['time'] = weekly
+                budgets_dict[budget[0]]['interval'] = 'weekly'
+
         for expense in expenses:
-            expenses_dict[expense[0]] = expense[1]
+            if expense[0] in budgets_dict.keys():
+                if expense[2] > budgets_dict[expense[0]]['time']:
+                    budgets_dict[expense[0]]['amount_spent'] += int(expense[1])
 
         weekly = 1
         monthly = 1
         yearly = 1
 
-        for budget in budgets:
+        for key in budgets_dict.keys():
             budget_frame = QFrame(self)
             grid = QGridLayout(budget_frame)
-            amount = 0
+            amount = budgets_dict[key]['amount_spent']
 
-            now = datetime.now().strftime('%Y%m%d%H%M%S')
-
-            if budget[3] == 'yearly':
-                year = int(now[:4]) - 1
-                now = str(year) + now[4:6] + '00000000'
-            elif budget[3] == 'monthly':
-                month = int(now[:6]) - 1
-                now = str(month) + '00000000'
-            elif budget[3] == 'weekly':
-                day = int(now[:8]) - date.today().weekday()
-                now = str(day) + '000000'
-
-            if budget[0] in expenses_dict.keys():
-                amount += float(expenses_dict[budget[0]])
-
-            budget_name = Label(budget[0])
+            budget_name = Label(key)
             grid.addWidget(budget_name, 0, 0)
-            amount_label = Label(str(amount) + '/' + budget[1])
+            amount_label = Label(str(amount) + '/' +
+                                 budgets_dict[key]['amount'])
             grid.addWidget(amount_label, 1, 0)
+
             if amount > float(budget[1]):
                 amount_label.setStyleSheet('color: red;')
             elif amount == float(budget[1]):
                 amount_label.setStyleSheet('color: yellow')
-            if budget[-1] == 'weekly':
+            if budgets_dict[key]['interval'] == 'weekly':
                 self.weekly_grid.addWidget(budget_frame, weekly, 0)
                 weekly += 1
-            elif budget[-1] == 'monthly':
+            elif budgets_dict[key]['interval'] == 'monthly':
                 self.monthly_grid.addWidget(budget_frame, monthly, 0)
                 monthly += 1
             else:
