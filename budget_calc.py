@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import datetime, timedelta, date
+from datetime import datetime, date
 
 db = sqlite3.connect(
     r'App_projects\expense_tracker\expenses.db')
@@ -9,16 +9,16 @@ account = 'cele'
 budgets_raw = cursor.execute(
     f'SELECT category, amount, time FROM budgets WHERE account = "{account}"').fetchall()
 
-print('### budgets ###')
+print('### Raw budgets ###')
 print(budgets_raw)
+print('    ')
 
 expenses = cursor.execute(
-    f'SELECT category, amount, time FROM expenses WHERE user = "{account}" GROUP BY category;').fetchall()
+    f'SELECT category, amount, time FROM expenses WHERE user = "{account}"').fetchall()
 
 print('### expenses ###')
 print(expenses)
-
-expense_dict = {}
+print('    ')
 
 budgets_dict = {}
 
@@ -47,15 +47,12 @@ for budget in budgets_raw:
 
 print('### budgets_dict ###')
 print(budgets_dict)
-
+print('   ')
 
 for expense in expenses:
     if expense[0] in budgets_dict.keys():
         if expense[2] > budgets_dict[expense[0]]['time']:
-            print('a')
             budgets_dict[expense[0]]['amount_spent'] += int(expense[1])
-
-print('         ')
 
 print('Budgets reworked')
 print(budgets_dict)
