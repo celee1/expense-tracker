@@ -138,6 +138,9 @@ class ExpenseTracker(QMainWindow):
         self.year = PushButton('This year', 200, self.show_graph_time)
         self.button_grid.addWidget(self.year, 1, 1)
 
+        self.entire_time = PushButton('Entire time', 200, self.show_graph_time)
+        self.button_grid.addWidget(self.entire_time, 1, 2)
+
         self.show_graph()
 
     def add_an_expense(self):
@@ -154,8 +157,12 @@ class ExpenseTracker(QMainWindow):
 
     def get_account_balance(self, account, initial=True):
         try:
-            self.label_2.setText('Balance: ' + [item[0] for item in self.cursor.execute(
-                f'SELECT amount FROM account WHERE name = "{account}";').fetchall()][0] + '€')
+            balance = [item[0] for item in self.cursor.execute(
+                f'SELECT amount FROM account WHERE name = "{account}";').fetchall()][0]
+            self.label_2.setText('Balance: ' + balance + '€')
+            self.cursor.execute(
+                f'INSERT INTO balances VALUES ("{account}", "{self.get_time()}", "{balance}")')
+            self.db.commit()
             if initial == False:
                 self.label_4.setText(self.label_4.text().split(' ')[
                                      0] + ' ' + self.account)
@@ -192,33 +199,34 @@ class ExpenseTracker(QMainWindow):
 
         now = datetime.now()
 
-        if date == 'Last 30 days':
-            num_days = 30
-        else:
-            num_days = 365
-
-        days = (now - timedelta(days=num_days)).strftime('%Y%m%d%H%M%S')
-
-        try:
-            query = self.cursor.execute(
-                f'SELECT {asset}, SUM({amount}) FROM "{table_name}" WHERE type = "expense" AND time BETWEEN "{days}" AND "{self.get_time()}" AND user = "{self.account}" GROUP BY {asset}').fetchall()
-        except OperationalError:
-            query = self.cursor.execute(
-                f'SELECT {asset}, SUM({amount}) FROM "expenses" WHERE type = "expense" AND time BETWEEN "{days}" AND "{self.get_time()}" AND user = "{self.account}" GROUP BY {asset}').fetchall()
-
         self.pie = MplCanvasPie(self, width=6, height=5, dpi=100)
 
-        if date == 'Last 30 days':
-            time = 'Last 30 days'
+        if date == 'Entire time':
+            query = self.cursor.execute(
+                f'SELECT {asset}, SUM({amount}) FROM "{table_name}" WHERE type = "expense" AND user = "{self.account}" GROUP BY {asset}').fetchall()
+
         else:
-            time = 'This year'
+            if date == 'Last 30 days':
+                num_days = 30
+            elif date == 'This year':
+                num_days = 365
+
+            days = (now - timedelta(days=num_days)).strftime('%Y%m%d%H%M%S')
+
+            try:
+                query = self.cursor.execute(
+                    f'SELECT {asset}, SUM({amount}) FROM "{table_name}" WHERE type = "expense" AND time BETWEEN "{days}" AND "{self.get_time()}" AND user = "{self.account}" GROUP BY {asset}').fetchall()
+            except OperationalError:
+                query = self.cursor.execute(
+                    f'SELECT {asset}, SUM({amount}) FROM "expenses" WHERE type = "expense" AND time BETWEEN "{days}" AND "{self.get_time()}" AND user = "{self.account}" GROUP BY {asset}').fetchall()
 
         try:
             self.pie.show_overview(amounts=[float(item[1]) for item in query], assets=[
-                item[0] for item in query], table_name=table_name.upper(), table_title=sum([float(item[1]) for item in query]), time_period=time)
+                item[0] for item in query], table_name=table_name.upper(), table_title=sum([float(item[1]) for item in query]), time_period=date)
+
         except AttributeError:
             self.pie.show_overview(amounts=[float(item[1]) for item in query], assets=[
-                item[0] for item in query], table_name="EXPENSES", table_title=sum([float(item[1]) for item in query]), time_period=time)
+                item[0] for item in query], table_name="EXPENSES", table_title=sum([float(item[1]) for item in query]), time_period=date)
 
         self.grid_2.addWidget(self.pie, 2, 0, 1, 3)
         self.pie.show()
