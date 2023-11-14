@@ -17,15 +17,6 @@ import sys
 matplotlib.use('Qt5Agg')
 
 
-# promijenit opciju za stanje na racunu
-
-# budgeti -> opcija kad udes koja provjerava koji je racun
-#         -> ako se napravi racun unosi se unos u balance tablicu
-#         -> ako je racun postojeci povlaci zadnji iznos iz balance tablice
-
-# balance tablica ima zapise o stanju na racunu kroz vrijeme
-# sql query dodaje stanje u racunu pri unosu troskova i prihoda, kao i postavljanja stanja na racunu
-
 class ExpenseTracker(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -264,15 +255,15 @@ class NewBalance(QWidget):
         self.close_button.clicked.connect(self.close)
         self.grid.addWidget(self.close_button, 2, 1)
 
-    def change_balance(self, a='11', account='cele'):
+    def change_balance(self, a='11'):
         user_found = e.cursor.execute(
-            f'SELECT name FROM account WHERE name = "{account}";').fetchall()
+            f'SELECT name FROM account WHERE name = "{e.account}";').fetchall()
         if user_found != []:
             e.cursor.execute(
-                f'UPDATE account SET amount = "{self.edit.text()}" WHERE name = "{account}";')
+                f'UPDATE account SET amount = "{self.edit.text()}" WHERE name = "{e.account}";')
         else:
             e.cursor.execute(
-                f'INSERT INTO account VALUES ("{account}", "{self.edit.text()}");')
+                f'INSERT INTO account VALUES ("{e.account}", "{self.edit.text()}");')
 
         e.db.commit()
         e.get_account_balance(e.account)
