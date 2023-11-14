@@ -894,23 +894,13 @@ class BalanceWindow(QWidget):
         self.grid_2.addWidget(self.button_3, 0, 2)
         self.grid_2.addWidget(self.button_4, 0, 3)
 
-        self.balances[0].reverse()
-        self.balances[1].reverse()
-
     def calc_balance(self):
-        expenses = e.cursor.execute(
-            f'SELECT amount, type, time FROM expenses WHERE user = "{e.account}"').fetchall()
-        balances = [float(e.cursor.execute(
-            f'SELECT amount FROM account WHERE name = "{e.account}";').fetchall()[0][0])]
-        dates = [''.join([item for item in datetime.now().strftime(
-            '%Y/%m/%d, %H:%M:%S') if item.isalnum()])]
+        data = e.cursor.execute(
+            f'SELECT date, amount FROM balances WHERE user = "{e.account}"').fetchall()
 
-        for i in range(1, len(expenses) + 1):
-            if expenses[-i][1] == 'expense':
-                balances.insert(0, float(balances[0]) + float(expenses[-i][0]))
-            elif expenses[-i][1] == 'income':
-                balances.insert(0, float(balances[0]) - float(expenses[-i][0]))
-            dates.append(expenses[-i][2])
+        dates = [item[0] for item in data]
+        balances = [item[1] for item in data]
+
         return dates, balances
 
     def entire_time(self):
